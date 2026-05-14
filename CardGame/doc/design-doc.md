@@ -387,3 +387,5 @@ void UndoManager::undoRemoveCard(const UndoRecord& record)
 - [ ] **撤销层** — 新操作是否需要可撤销？如果需要，更新 UndoActionType + UndoManager
 - [ ] **关卡 JSON** — 测试数据是否覆盖新功能？
 - [ ] **构建文件** — 如果新增了 .cpp/.h，是否注册到 CMakeLists.txt 和 .vcxproj？
+- [ ] **悬空指针** — vector erase 前必须 `CardModel saved = *ptr` 保存副本，erase 后指针立即失效
+- [ ] **回调清理** — 牌在视图之间迁移时（主牌区→底牌区、翻面、撤销恢复），必须 `setOnCardClicked(nullptr)` 清除旧回调，否则会抢触摸事件
