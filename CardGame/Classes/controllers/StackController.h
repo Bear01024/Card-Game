@@ -21,6 +21,7 @@ private:
     GameModel* _model;
     StackView* _stackView;
     UndoManager* _undoManager;
+    bool _isAnimating;
 };
 
 #endif // __STACK_CONTROLLER_H__

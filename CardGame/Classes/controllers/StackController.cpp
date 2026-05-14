@@ -10,6 +10,7 @@ StackController::StackController()
     : _model(nullptr)
     , _stackView(nullptr)
     , _undoManager(nullptr)
+    , _isAnimating(false)
 {
 }
 
@@ -27,6 +28,12 @@ void StackController::handleHandCardClick(CardView* cardView)
 {
     if (!_model || !_stackView) return;
 
+    // Guard: reject clicks during animation
+    if (_isAnimating) {
+        CCLOG("StackController: card id=%d ignored (animating)", cardView->getCardId());
+        return;
+    }
+
     // Only the rightmost hand card can be used (requirement 1)
     CardView* rightmost = _stackView->getRightmostHandCard();
     if (cardView != rightmost) {
@@ -34,6 +41,7 @@ void StackController::handleHandCardClick(CardView* cardView)
         return;
     }
 
+    _isAnimating = true;
     CardView* oldTop = _stackView->getTopCardView();
 
     // Record undo before animation
@@ -52,24 +60,22 @@ void StackController::handleHandCardClick(CardView* cardView)
     // Target: top card position in StackView
     Vec2 targetPos = oldTop ? oldTop->getPosition() : _stackView->getPosition();
 
-    // Animate clicked card to top card position, then update hierarchy
     auto* sv = _stackView;
     auto migrate = CallFunc::create([this, cardView, oldTop, sv]() {
-        // Remove from hand cards silently
         sv->removeHandCardSilent(cardView);
 
-        // "Press" old top: face-down, lower z-order, leave in place
         if (oldTop) {
             sv->setTopCardSilent(nullptr);
             oldTop->setFaceUp(false);
             oldTop->setLocalZOrder(0);
+            oldTop->setOnCardClicked(nullptr);
         }
 
-        // Set clicked card as new top
+        cardView->setOnCardClicked(nullptr);
         sv->setTopCardSilent(cardView);
         sv->layoutCards();
 
-        // Update model: change topCardIndex to clicked card's index
+        // Update model
         int clickedIdx = -1;
         auto& stackCards = _model->getStackCards();
         for (size_t i = 0; i < stackCards.size(); ++i) {
@@ -82,7 +88,11 @@ void StackController::handleHandCardClick(CardView* cardView)
             _model->setTopCardIndex(clickedIdx);
         }
 
-        CCLOG("StackController: hand card id=%d -> new top card", cardView->getCardId());
+        _isAnimating = false;
+        CCLOG("StackController: swap! hand card id=%d (face=%d) -> new top card, stackCards=%zu",
+              cardView->getCardId(),
+              static_cast<int>(cardView->getFace()),
+              _model->getStackCards().size());
     });
 
     cardView->runAction(Sequence::create(

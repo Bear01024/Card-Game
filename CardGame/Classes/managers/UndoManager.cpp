@@ -64,7 +64,11 @@ void UndoManager::undo()
 
     _isUndoing = true;
     UndoRecord record = _undoModel.pop();
-    if (_onStateChanged) _onStateChanged(false);  // undo in progress, disable button
+    if (_onStateChanged) _onStateChanged(false);
+
+    CCLOG("UndoManager: undo %s — cardA=%d, cardB=%d, oldTopIdx=%d, undoStack=%zu",
+          record.type == UndoActionType::StackSwap ? "StackSwap" : "PlayFieldMatch",
+          record.cardAId, record.cardBId, record.oldTopCardIndex, _undoModel.size());
 
     if (record.type == UndoActionType::StackSwap) {
         undoStackSwap(record);
@@ -115,6 +119,7 @@ void UndoManager::undoStackSwap(const UndoRecord& record)
         if (cardB) {
             cardB->setFaceUp(true);
             cardB->setLocalZOrder(100);
+            cardB->setOnCardClicked(nullptr);  // top card needs no touch callback
             sv->setTopCardSilent(cardB);
         }
 
@@ -124,8 +129,11 @@ void UndoManager::undoStackSwap(const UndoRecord& record)
         _model->setTopCardIndex(record.oldTopCardIndex);
 
         _isUndoing = false;
-        CCLOG("UndoManager: StackSwap undone. card id=%d back to hand, card id=%d back to top",
-              record.cardAId, record.cardBId);
+        CCLOG("UndoManager: StackSwap undone — card id=%d to hand, card id=%d to top, pfCards=%zu, stackCards=%zu, topIdx=%d",
+              record.cardAId, record.cardBId,
+              _model->getPlayFieldCards().size(),
+              _model->getStackCards().size(),
+              _model->getTopCardIndex());
         if (_onStateChanged) _onStateChanged(_undoModel.canUndo());
     });
 
@@ -172,30 +180,35 @@ void UndoManager::undoPlayFieldMatch(const UndoRecord& record)
         if (cardB) {
             cardB->setFaceUp(true);
             cardB->setLocalZOrder(100);
+            cardB->setOnCardClicked(nullptr);  // top card needs no touch callback
             sv->setTopCardSilent(cardB);
         }
 
         sv->layoutCards();
 
-        // Update model: move cardA from stack back to play field, restore top index
+        // Update model: save card data before erasing (pointer invalidated by erase)
         CardModel* cardAModel = _model->findCardById(record.cardAId);
         if (cardAModel) {
             cardAModel->setInPlayField(true);
             cardAModel->setPosition(posInPlayField);
 
+            CardModel saved = *cardAModel;  // copy before pointer is invalidated
             auto& stackCards = _model->getStackCards();
             stackCards.erase(std::remove_if(stackCards.begin(), stackCards.end(),
                 [&record](const CardModel& c) { return c.getId() == record.cardAId; }),
                 stackCards.end());
 
-            _model->getPlayFieldCards().push_back(*cardAModel);
+            _model->getPlayFieldCards().push_back(saved);
         }
 
         _model->setTopCardIndex(record.oldTopCardIndex);
 
         _isUndoing = false;
-        CCLOG("UndoManager: PlayFieldMatch undone. card id=%d back to play field, card id=%d back to top",
-              record.cardAId, record.cardBId);
+        CCLOG("UndoManager: PlayFieldMatch undone — card id=%d to play field, card id=%d to top, pfCards=%zu, stackCards=%zu, topIdx=%d",
+              record.cardAId, record.cardBId,
+              _model->getPlayFieldCards().size(),
+              _model->getStackCards().size(),
+              _model->getTopCardIndex());
         if (_onStateChanged) _onStateChanged(_undoModel.canUndo());
     });
 

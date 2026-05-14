@@ -28,9 +28,9 @@ bool GameView::init()
     this->addChild(_stackView, 1);
 
     // Undo label with touch
-    _undoLabel = Label::createWithSystemFont("Undo", "Arial", 32);
+    _undoLabel = Label::createWithSystemFont("回退", "Arial", 40);
     _undoLabel->setPosition(Vec2(screenSize.width - 80, 250));
-    _undoLabel->setTextColor(Color4B::WHITE);
+    _undoLabel->setTextColor(Color4B::BLACK);
     this->addChild(_undoLabel, 2);
 
     auto listener = EventListenerTouchOneByOne::create();
@@ -56,6 +56,6 @@ bool GameView::init()
 void GameView::setUndoEnabled(bool enabled)
 {
     if (_undoLabel) {
-        _undoLabel->setTextColor(enabled ? Color4B::WHITE : Color4B::GRAY);
+        _undoLabel->setTextColor(enabled ? Color4B::BLACK : Color4B::GRAY);
     }
 }

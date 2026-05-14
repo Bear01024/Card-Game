@@ -1,4 +1,5 @@
 #include "PlayFieldView.h"
+#include <algorithm>
 
 USING_NS_CC;
 
@@ -17,6 +18,11 @@ bool PlayFieldView::init()
 {
     if (!Node::init()) return false;
     setContentSize(Size(1080, 1500));
+
+    auto bg = LayerColor::create(Color4B(255, 245, 200, 255), 1080, 1500);
+    bg->setPosition(Vec2::ZERO);
+    this->addChild(bg, -1);
+
     return true;
 }
 
@@ -100,8 +106,12 @@ void PlayFieldView::updateAllClickable()
 
 void PlayFieldView::sortCardsByZOrder()
 {
-    // Z-order follows array index: later cards (higher index) have higher Z
-    // and cover earlier cards — inverse stacking.
+    // Sort by Y descending: cards with lower Y (further down on screen)
+    // appear later in the array → higher z-order → visually in front.
+    std::sort(_cardViews.begin(), _cardViews.end(),
+        [](CardView* a, CardView* b) {
+            return a->getPositionY() > b->getPositionY();
+        });
     for (size_t i = 0; i < _cardViews.size(); ++i) {
         _cardViews[i]->setLocalZOrder(static_cast<int>(i));
     }

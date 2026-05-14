@@ -26,6 +26,7 @@ private:
     PlayFieldView* _playFieldView;
     StackView* _stackView;
     UndoManager* _undoManager;
+    bool _isAnimating;
 };
 
 #endif // __PLAY_FIELD_CONTROLLER_H__

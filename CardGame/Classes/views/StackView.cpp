@@ -22,6 +22,11 @@ bool StackView::init()
     if (!Node::init()) return false;
     _topCardView = nullptr;
     setContentSize(Size(STACK_WIDTH, STACK_HEIGHT));
+
+    auto bg = LayerColor::create(Color4B(100, 60, 150, 255), STACK_WIDTH, STACK_HEIGHT);
+    bg->setPosition(Vec2::ZERO);
+    this->addChild(bg, -1);
+
     return true;
 }
 

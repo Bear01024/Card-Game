@@ -12,6 +12,7 @@ PlayFieldController::PlayFieldController()
     , _playFieldView(nullptr)
     , _stackView(nullptr)
     , _undoManager(nullptr)
+    , _isAnimating(false)
 {
 }
 
@@ -30,16 +31,28 @@ void PlayFieldController::handleCardClick(CardView* cardView)
 {
     if (!_model || !_playFieldView || !_stackView) return;
 
+    // Guard: reject clicks during animation
+    if (_isAnimating) {
+        CCLOG("PlayFieldController: card id=%d ignored (animating)", cardView->getCardId());
+        return;
+    }
+
     if (!isCardClickable(cardView)) {
         CCLOG("PlayFieldController: card id=%d is covered, ignored", cardView->getCardId());
         return;
     }
 
     if (!canMatch(cardView)) {
-        CCLOG("PlayFieldController: card id=%d cannot match top card", cardView->getCardId());
+        const CardModel* topCard = _model->getTopCard();
+        CCLOG("PlayFieldController: card id=%d (face=%d) cannot match top card id=%d (face=%d)",
+              cardView->getCardId(),
+              static_cast<int>(cardView->getFace()),
+              topCard ? topCard->getId() : -1,
+              topCard ? static_cast<int>(topCard->getFace()) : -1);
         return;
     }
 
+    _isAnimating = true;
     CardView* oldTop = _stackView->getTopCardView();
 
     // Record undo before animation
@@ -60,38 +73,48 @@ void PlayFieldController::handleCardClick(CardView* cardView)
         oldTop ? oldTop->getPosition() : Vec2::ZERO);
     Vec2 targetInPF = _playFieldView->convertToNodeSpace(targetWorld);
 
-    // Animate card to stack, then migrate
     auto* pf = _playFieldView;
     auto* sv = _stackView;
     auto migrate = CallFunc::create([this, cardView, oldTop, pf, sv]() {
-        // Detach from PlayFieldView and attach to StackView
         cardView->removeFromParentAndCleanup(false);
         sv->addChild(cardView);
 
-        // Update view hierarchy
+        // Clear stale callback — card is no longer in play field
+        cardView->setOnCardClicked(nullptr);
+
         pf->removeCardSilent(cardView);
         if (oldTop) {
             sv->setTopCardSilent(nullptr);
             oldTop->setFaceUp(false);
-            oldTop->setLocalZOrder(0);  // pressed face-down underneath
+            oldTop->setLocalZOrder(0);
+            oldTop->setOnCardClicked(nullptr);
         }
         sv->setTopCardSilent(cardView);
         sv->layoutCards();
 
-        // Update model
+        // Refresh clickability of remaining play-field cards
+        pf->updateAllClickable();
+
+        // Update model: save card data before erasing (pointer invalidated by erase)
         CardModel* clickedModel = _model->findCardById(cardView->getCardId());
         if (clickedModel) {
+            CardModel saved = *clickedModel;  // copy before pointer is invalidated
             auto& pfCards = _model->getPlayFieldCards();
             pfCards.erase(std::remove_if(pfCards.begin(), pfCards.end(),
                 [cardView](const CardModel& c) { return c.getId() == cardView->getCardId(); }),
                 pfCards.end());
 
-            clickedModel->setInPlayField(false);
-            _model->getStackCards().push_back(*clickedModel);
+            saved.setInPlayField(false);
+            _model->getStackCards().push_back(saved);
             _model->setTopCardIndex(static_cast<int>(_model->getStackCards().size()) - 1);
         }
 
-        CCLOG("PlayFieldController: match! card id=%d -> new top card", cardView->getCardId());
+        _isAnimating = false;
+        CCLOG("PlayFieldController: match! card id=%d (face=%d) -> new top card, pfCards=%zu, stackCards=%zu",
+              cardView->getCardId(),
+              static_cast<int>(cardView->getFace()),
+              _model->getPlayFieldCards().size(),
+              _model->getStackCards().size());
     });
 
     cardView->runAction(Sequence::create(

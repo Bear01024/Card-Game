@@ -123,8 +123,10 @@ bool CardView::onTouchBegan(Touch* touch, Event* event)
     if (rect.containsPoint(localPos)) {
         if (_onCardClicked) {
             _onCardClicked(this);
+        } else {
+            CCLOG("CardView: touch on card id=%d but no callback set (stale/disabled)", _cardId);
         }
-        return true;
+        return false;  // never swallow — let all views receive the touch
     }
     return false;
 }
