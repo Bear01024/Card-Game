@@ -1,0 +1,34 @@
+# Visual Studio IDE
+.vs/
+*.vcxproj.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+**/Debug.win32/
+**/Release.win32/
+**/Release/
+
+# CMake build directory
+build/
+
+# Compiled object / intermediate files
+*.obj
+*.tlog
+*.lastbuildstate
+*.unsuccessfulbuild
+*.recipe
+*.FileListAbsolute.txt
+*.idb
+
+# Design documents
+*.docx
+
+# Claude Code internal
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
